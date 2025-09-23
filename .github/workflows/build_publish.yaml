@@ -49,6 +49,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
         run: |
+          set -x
+          
           git checkout public/main
           git checkout -b doc/${{github.ref_name}}
 
