@@ -79,7 +79,7 @@ jobs:
           git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git doc/${{github.ref_name}}
 
           # Push submodules with authentication
-          git submodule foreach --recursive 'git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git HEAD:ref/heads/doc/${{github.ref_name}} || true'
+          git submodule foreach --recursive 'git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git HEAD:refs/heads/doc/${{github.ref_name}} || true'
 
           # Create PR with explicit token
           gh pr create --title "Update docs to ${{github.ref_name}}" \
