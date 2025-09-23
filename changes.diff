@@ -1,0 +1,142 @@
+diff --git a/.github/workflows/delete-branch-after-merge.yaml b/.github/workflows/delete-branch-after-merge.yaml
+deleted file mode 100644
+index 146882d..0000000
+--- a/.github/workflows/delete-branch-after-merge.yaml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-name: Delete Branch After Merge
+-
+-on:
+-  pull_request:
+-    types: [closed]
+-
+-jobs:
+-  delete-branch:
+-    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'update-cookbook-submodule'
+-    runs-on: ubuntu-latest
+-    steps:
+-      - name: Checkout Repository
+-        uses: actions/checkout@v4
+-        with:
+-          token: ${{ secrets.DOCS_WRITE_TOKEN }}
+-          submodules: true
+-
+-      - name: Delete Branch
+-        run: |
+-          git config --global user.name "GitHub Actions"
+-          git config --global user.email "clement.choupault@mistral.ai"
+-          git push origin --delete ${{ github.event.pull_request.head.ref }}
+diff --git a/.github/workflows/update-submodule.yml b/.github/workflows/update-submodule.yml
+deleted file mode 100644
+index 4a53b05..0000000
+--- a/.github/workflows/update-submodule.yml
++++ /dev/null
+@@ -1,82 +0,0 @@
+-name: Update Submodule
+-on:
+-  repository_dispatch:
+-    types: [update-submodule-request]
+-jobs:
+-  update-submodule:
+-    runs-on: ubuntu-latest
+-    steps:
+-      - name: Checkout Repository
+-        uses: actions/checkout@v4
+-        with:
+-          token: ${{ secrets.DOCS_WRITE_TOKEN }}
+-          submodules: true
+-
+-      - name: Set Git Config
+-        run: |
+-          git config --global user.name "GitHub Actions"
+-          git config --global user.email "clement.choupault@mistral.ai"
+-
+-      - name: Check if Branch Exists
+-        id: check_branch
+-        run: |
+-          if git ls-remote --exit-code --heads origin update-cookbook-submodule > /dev/null 2>&1; then
+-            echo "branch_exists=true" >> $GITHUB_OUTPUT
+-          else
+-            echo "branch_exists=false" >> $GITHUB_OUTPUT
+-          fi
+-
+-      - name: Check if PR Exists
+-        id: check_pr
+-        env:
+-          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
+-        run: |
+-          PR_COUNT=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+-            "https://api.github.com/repos/${{ github.repository }}/pulls?head=update-cookbook-submodule&state=open" | jq '. | length')
+-          if [ "$PR_COUNT" -gt 0 ]; then
+-            echo "pr_exists=true" >> $GITHUB_OUTPUT
+-          else
+-            echo "pr_exists=false" >> $GITHUB_OUTPUT
+-          fi
+-
+-      - name: Create or Checkout Branch
+-        run: |
+-          git fetch
+-          if [ "${{ steps.check_branch.outputs.branch_exists }}" = "true" ]; then
+-            git checkout update-cookbook-submodule
+-          else
+-            git checkout -b update-cookbook-submodule
+-          fi
+-
+-      - name: Update Submodule
+-        run: |
+-          git submodule init
+-          git submodule update --remote
+-          cd cookbooks
+-          git pull origin main
+-          cd ..
+-          git add cookbooks
+-          git commit -m "Update cookbook submodule to latest version"
+-
+-      - name: Push Changes
+-        run: |
+-          if [ "${{ steps.check_branch.outputs.branch_exists }}" = "false" ]; then
+-            git push --set-upstream origin update-cookbook-submodule
+-          else
+-            git push origin update-cookbook-submodule
+-          fi
+-
+-      - name: Create Pull Request via API
+-        if: steps.check_pr.outputs.pr_exists == 'false'
+-        env:
+-          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
+-        run: |
+-          PR_TITLE="Update cookbook submodule to latest version"
+-          PR_BODY="This PR updates the cookbook submodule to the latest version."
+-          PR_HEAD="update-cookbook-submodule"
+-          PR_BASE="main"
+-          curl -X POST \
+-            -H "Authorization: token $GITHUB_TOKEN" \
+-            -H "Accept: application/vnd.github.v3+json" \
+-            https://api.github.com/repos/${{ github.repository }}/pulls \
+-            -d "{\"title\":\"$PR_TITLE\",\"body\":\"$PR_BODY\",\"head\":\"$PR_HEAD\",\"base\":\"$PR_BASE\"}"
+\ No newline at end of file
+diff --git a/.gitmodules b/.gitmodules
+deleted file mode 100644
+index 381837e..0000000
+--- a/.gitmodules
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[submodule "cookbooks"]
+-	path = cookbooks
+-	url = https://github.com/jaccolor2/test-c.git
+diff --git a/README.md b/README.md
+index 664805e..2712c8d 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1 @@
+-# test-d
+-
+-test
++# test-public-docs
+diff --git a/cookbooks b/cookbooks
+deleted file mode 160000
+index fd24a3e..0000000
+--- a/cookbooks
++++ /dev/null
+@@ -1 +0,0 @@
+-Subproject commit fd24a3e6a2e42443e86740788b16dee5cbf30d8d
