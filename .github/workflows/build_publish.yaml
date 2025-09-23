@@ -44,6 +44,7 @@ jobs:
             echo "No changes to apply"
           fi
 
+      # In your Push to public repo step:
       - name: Push to public repo
         env:
           GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
@@ -57,31 +58,32 @@ jobs:
           # write version number to version file
           echo ${{github.ref_name}} > version.txt
 
-          # Get the submodule status from the source branch
-          SOURCE_SUBMODULES=$(git rev-parse ${{github.ref_name}}:|git ls-tree -r --name-only -z|grep -z '^.*\.gitmodules$'||:)
-          if [ -n "$SOURCE_SUBMODULES" ]; then
+          # Fixed submodule detection
+          if git rev-parse ${{github.ref_name}}:.gitmodules >/dev/null 2>&1; then
             git submodule update --recursive --checkout
+            # Create diff including submodules (simpler approach)
+            git diff ${{github.ref_name}} --ignore-submodules=none > changes.diff || true
+            git apply --index changes.diff || {
+              echo "Patch failed, trying alternative approach"
+              # Fallback: copy files directly instead of patching
+              git rm -r . 2>/dev/null || true
+              git checkout ${{github.ref_name}} -- . || true
+              git submodule update --init --recursive
+            }
           fi
-
-          # Create diff including submodules
-          git diff --submodule=diff ${{github.ref_name}} > changes.diff || true
-
-          # Apply changes including submodules
-          git apply --index changes.diff || true
-
-          # Update submodules to their correct commits
-          git submodule update --init --recursive
 
           git add .
           git commit -m "Update version to ${{github.ref_name}}"
 
-          # Push with submodules
-          git push public doc/${{github.ref_name}}
-          git submodule foreach --recursive 'git push --all'
+          # Use token in URL for authentication
+          git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git doc/${{github.ref_name}}
 
-          # Create PR
+          # Push submodules with authentication
+          git submodule foreach --recursive 'git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git HEAD:ref/heads/doc/${{github.ref_name}} || true'
+
+          # Create PR with explicit token
           gh pr create --title "Update docs to ${{github.ref_name}}" \
                       --body "This PR was automatically created by a GitHub Action" \
                       --base main \
                       --head doc/${{github.ref_name}} \
-                      --repo mistralai/platform-docs-public
+                      --repo jaccolor2/test-public-docs
