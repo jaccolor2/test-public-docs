@@ -29,7 +29,7 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "mayo@mistral.ai"
 
-          git remote add public https://github.com/jaccolor2/test-public-docs.git
+          git remote add public https://github.com/mistralai/platform-docs-public.git
           git remote update
 
           # Create a diff of the changes, ignoring the ci workflow
