@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.DOCS_WRITE_TOKEN }}
-
+          fetch-depth: 0
 
       - name: Pull public updates
         env: # We cannot use the github bot token to push to the public repo, we have to use one with more permissions
@@ -29,8 +29,9 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "mayo@mistral.ai"
 
-          git remote add public https://github.com/mistralai/platform-docs-public.git
+          git remote add public https://github.com/jaccolor2/test-public-docs.git
           git remote update
+          git status
 
           # Create a diff of the changes, ignoring the ci workflow
           git merge public/main --no-commit --no-ff --no-edit --allow-unrelated-histories
@@ -43,32 +44,48 @@ jobs:
             echo "No changes to apply"
           fi
 
+      # In your Push to public repo step:
       - name: Push to public repo
         env:
           GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
         run: |
+          set -x
+          
           git checkout public/main
           git checkout -b doc/${{github.ref_name}}
-          
+
+          # Initialize and update submodules recursively
+          git submodule update --init --recursive
+
           # write version number to version file
           echo ${{github.ref_name}} > version.txt
 
-          git add .
-          git commit -m "Bump version file"
+          # Fixed submodule detection
+          if git rev-parse ${{github.ref_name}}:.gitmodules >/dev/null 2>&1; then
+            git submodule update --recursive --checkout
+            # Create diff including submodules (simpler approach)
+            git diff ${{github.ref_name}} --ignore-submodules=none > changes.diff || true
+            git apply --index changes.diff || {
+              echo "Patch failed, trying alternative approach"
+              # Fallback: copy files directly instead of patching
+              git rm -r . 2>/dev/null || true
+              git checkout ${{github.ref_name}} -- . || true
+              git submodule update --init --recursive
+            }
+          fi
 
-          # create a diff of this ref and the public repo
-          git diff doc/${{github.ref_name}} ${{github.ref_name}} --binary -- . ':!.github' > changes.diff
-
-          # apply the diff to the current branch
-          git apply changes.diff
-
-          # commit the changes
           git add .
           git commit -m "Update version to ${{github.ref_name}}"
 
-          # push the changes
-          git push public doc/${{github.ref_name}}
+          # Use token in URL for authentication
+          git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git doc/${{github.ref_name}}
 
-          # Create a PR from this branch to the public repo
-          gh pr create --title "Update docs to ${{github.ref_name}}" --body "This PR was automatically created by a GitHub Action" --base main --head doc/${{github.ref_name}} --repo mistralai/platform-docs-public
-        
+          # Push submodules with authentication
+          git submodule foreach --recursive 'git push https://${{ secrets.DOCS_WRITE_TOKEN }}@github.com/jaccolor2/test-public-docs.git HEAD:refs/heads/doc/${{github.ref_name}} || true'
+
+          # Create PR with explicit token
+          gh pr create --title "Update docs to ${{github.ref_name}}" \
+                      --body "This PR was automatically created by a GitHub Action" \
+                      --base main \
+                      --head doc/${{github.ref_name}} \
+                      --repo jaccolor2/test-public-docs
