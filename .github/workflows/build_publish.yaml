@@ -46,7 +46,7 @@ jobs:
 
       - name: Push to public repo
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
         run: |
           git checkout public/main
           git checkout -b doc/${{github.ref_name}}
