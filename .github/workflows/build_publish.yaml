@@ -17,20 +17,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.DOCS_WRITE_TOKEN }}
-
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Pull public updates
         env: # We cannot use the github bot token to push to the public repo, we have to use one with more permissions
-          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
 
           set -x
           git config --global user.name "GitHub Actions"
           git config --global user.email "mayo@mistral.ai"
 
-          git remote add public https://github.com/mistralai/test-public-docs.git
+          git remote add public https://github.com/jaccolor2/test-public-docs.git
           git remote update
+          git status
 
           # Create a diff of the changes, ignoring the ci workflow
           git merge public/main --no-commit --no-ff --no-edit --allow-unrelated-histories
@@ -45,30 +46,42 @@ jobs:
 
       - name: Push to public repo
         env:
-          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout public/main
           git checkout -b doc/${{github.ref_name}}
-          
+
+          # Initialize and update submodules recursively
+          git submodule update --init --recursive
+
           # write version number to version file
           echo ${{github.ref_name}} > version.txt
 
-          git add .
-          git commit -m "Bump version file"
+          # Get the submodule status from the source branch
+          SOURCE_SUBMODULES=$(git rev-parse ${{github.ref_name}}:|git ls-tree -r --name-only -z|grep -z '^.*\.gitmodules$'||:)
+          if [ -n "$SOURCE_SUBMODULES" ]; then
+            git submodule update --recursive --checkout
+          fi
 
-          # create a diff of this ref and the public repo
-          git diff doc/${{github.ref_name}} ${{github.ref_name}} --binary -- . ':!.github' > changes.diff
+          # Create diff including submodules
+          git diff --submodule=diff ${{github.ref_name}} > changes.diff || true
 
-          # apply the diff to the current branch
-          git apply changes.diff
+          # Apply changes including submodules
+          git apply --index changes.diff || true
 
-          # commit the changes
+          # Update submodules to their correct commits
+          git submodule update --init --recursive
+
           git add .
           git commit -m "Update version to ${{github.ref_name}}"
 
-          # push the changes
+          # Push with submodules
           git push public doc/${{github.ref_name}}
+          git submodule foreach --recursive 'git push --all'
 
-          # Create a PR from this branch to the public repo
-          gh pr create --title "Update docs to ${{github.ref_name}}" --body "This PR was automatically created by a GitHub Action" --base main --head doc/${{github.ref_name}} --repo mistralai/platform-docs-public
-        
+          # Create PR
+          gh pr create --title "Update docs to ${{github.ref_name}}" \
+                      --body "This PR was automatically created by a GitHub Action" \
+                      --base main \
+                      --head doc/${{github.ref_name}} \
+                      --repo mistralai/platform-docs-public
