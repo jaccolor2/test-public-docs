@@ -22,7 +22,7 @@ jobs:
 
       - name: Pull public updates
         env: # We cannot use the github bot token to push to the public repo, we have to use one with more permissions
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DOCS_WRITE_TOKEN }}
         run: |
 
           set -x
