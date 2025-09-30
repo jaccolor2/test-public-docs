@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.DOCS_WRITE_TOKEN }}
+          submodules: true
 
 
       - name: Pull public updates
@@ -57,7 +58,7 @@ jobs:
           git commit -m "Bump version file"
 
           # create a diff of this ref and the public repo
-          git diff doc/${{github.ref_name}} ${{github.ref_name}} --binary -- . ':!.github' > changes.diff
+          git diff doc/${{github.ref_name}} ${{github.ref_name}} --binary --ignore-submodules=none -- . ':!.github' > changes.diff
 
           # apply the diff to the current branch
           git apply changes.diff
