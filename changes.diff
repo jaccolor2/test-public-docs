@@ -1,0 +1,23 @@
+diff --git a/.gitmodules b/.gitmodules
+new file mode 100644
+index 0000000..381837e
+--- /dev/null
++++ b/.gitmodules
+@@ -0,0 +1,3 @@
++[submodule "cookbooks"]
++	path = cookbooks
++	url = https://github.com/jaccolor2/test-c.git
+diff --git a/cookbooks b/cookbooks
+new file mode 160000
+index 0000000..cb24595
+--- /dev/null
++++ b/cookbooks
+@@ -0,0 +1 @@
++Subproject commit cb24595785435be13acde61078e7a71c4fe22bd6
+diff --git a/version.txt b/version.txt
+deleted file mode 100644
+index c55013b..0000000
+--- a/version.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-v0.0.25
